@@ -5,11 +5,10 @@ from sqlalchemy.orm import sessionmaker
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from models.models import users, shanyraks, comments
+from models.models import users, shanyraks, comments, metadata
 
-from config import DB_USER, DB_PASS, DB_HOST, DB_PORT, DB_NAME 
 
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = "postgresql+asyncpg://user:password@localhost/dbname"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
@@ -287,6 +286,7 @@ async def get_comments(id: int, session: AsyncSession = Depends(get_session)):
         } for comment in comment_list
     ]}
 
+
 @app.patch("/shanyraks/{id}/comments/{comment_id}")
 async def update_comment(id: int, comment_id: int, comment: CommentUpdate, token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -313,6 +313,7 @@ async def update_comment(id: int, comment_id: int, comment: CommentUpdate, token
         raise HTTPException(status_code=404, detail="Comment not found")
 
     return {"message": "Comment updated successfully"}
+
 
 @app.delete("/shanyraks/{id}/comments/{comment_id}")
 async def delete_comment(id: int, comment_id: int, token: str = Header(...), session: AsyncSession = Depends(get_session)):
