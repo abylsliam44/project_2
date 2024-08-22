@@ -3,7 +3,7 @@ from sqlalchemy import MetaData, Table, Column, Integer, String, TIMESTAMP, Fore
 
 metadata = MetaData()
 
-# Модель таблицы пользователей
+
 users = Table(
     "users",
     metadata,
@@ -16,7 +16,7 @@ users = Table(
     Column("registered_at", TIMESTAMP, default=datetime.utcnow),
 )
 
-# Модель таблицы объявлений
+
 shanyraks = Table(
     "shanyraks",
     metadata,
@@ -30,7 +30,7 @@ shanyraks = Table(
     Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
 )
 
-# Модель таблицы комментариев
+
 comments = Table(
     "comments",
     metadata,

@@ -5,15 +5,16 @@ from sqlalchemy.orm import sessionmaker
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from models import users, shanyraks, comments, metadata
+from models.models import users, shanyraks, comments
 
-# Конфигурация базы данных
-DATABASE_URL = "postgresql+asyncpg://user:password@localhost/dbname"
+from config import DB_USER, DB_PASS, DB_HOST, DB_PORT, DB_NAME 
+
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
-# Инициализация FastAPI
+
 app = FastAPI()
 metadata.create_all(bind=engine)
 
@@ -21,12 +22,12 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
 
-# Зависимость для получения сессии базы данных
+
 async def get_session():
     async with SessionLocal() as session:
         yield session
 
-# Модель для регистрации пользователя
+
 class UserCreate(BaseModel):
     username: str
     phone: str
@@ -34,13 +35,13 @@ class UserCreate(BaseModel):
     name: str = None
     city: str = None
 
-# Модель для обновления данных пользователя
+
 class UserUpdate(BaseModel):
     phone: str = None
     name: str = None
     city: str = None
 
-# Модель для создания объявления
+
 class ShanyrakCreate(BaseModel):
     type: str
     price: int
@@ -49,7 +50,6 @@ class ShanyrakCreate(BaseModel):
     rooms_count: int
     description: str = None
 
-# Модель для обновления объявления
 class ShanyrakUpdate(BaseModel):
     type: str = None
     price: int = None
@@ -58,15 +58,14 @@ class ShanyrakUpdate(BaseModel):
     rooms_count: int = None
     description: str = None
 
-# Модель для добавления комментария
+
 class CommentCreate(BaseModel):
     content: str
 
-# Модель для обновления комментария
 class CommentUpdate(BaseModel):
     content: str
 
-# Регистрация пользователя
+
 @app.post("/auth/users/")
 async def register_user(user: UserCreate, session: AsyncSession = Depends(get_session)):
     hashed_password = pwd_context.hash(user.password)
@@ -84,7 +83,6 @@ async def register_user(user: UserCreate, session: AsyncSession = Depends(get_se
         raise HTTPException(status_code=400, detail=str(e))
     return {"message": "User created successfully"}
 
-# Логин пользователя
 @app.post("/auth/users/login")
 async def login(username: str = Form(...), password: str = Form(...), session: AsyncSession = Depends(get_session)):
     stmt = select(users).where(users.c.username == username)
@@ -97,7 +95,6 @@ async def login(username: str = Form(...), password: str = Form(...), session: A
     token = jwt.encode({"sub": user.username}, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": token}
 
-# Получение данных пользователя
 @app.get("/auth/users/me")
 async def get_user_info(token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -123,7 +120,6 @@ async def get_user_info(token: str = Header(...), session: AsyncSession = Depend
         "city": user.city
     }
 
-# Изменение данных пользователя
 @app.patch("/auth/users/me")
 async def update_user(data: UserUpdate, token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -144,7 +140,6 @@ async def update_user(data: UserUpdate, token: str = Header(...), session: Async
 
     return {"message": "User data updated successfully"}
 
-# Создание объявления
 @app.post("/shanyraks/")
 async def create_shanyrak(shanyrak: ShanyrakCreate, token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -178,7 +173,6 @@ async def create_shanyrak(shanyrak: ShanyrakCreate, token: str = Header(...), se
 
     return {"id": shanyrak_id}
 
-# Получение объявления
 @app.get("/shanyraks/{id}")
 async def get_shanyrak(id: int, session: AsyncSession = Depends(get_session)):
     stmt = select(shanyraks).where(shanyraks.c.id == id)
@@ -199,7 +193,6 @@ async def get_shanyrak(id: int, session: AsyncSession = Depends(get_session)):
         "user_id": shanyrak.user_id
     }
 
-# Изменение объявления
 @app.patch("/shanyraks/{id}")
 async def update_shanyrak(id: int, data: ShanyrakUpdate, token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -227,7 +220,6 @@ async def update_shanyrak(id: int, data: ShanyrakUpdate, token: str = Header(...
 
     return {"message": "Shanyrak updated successfully"}
 
-# Удаление объявления
 @app.delete("/shanyraks/{id}")
 async def delete_shanyrak(id: int, token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -252,7 +244,6 @@ async def delete_shanyrak(id: int, token: str = Header(...), session: AsyncSessi
 
     return {"message": "Shanyrak deleted successfully"}
 
-# Добавление комментария
 @app.post("/shanyraks/{id}/comments")
 async def add_comment(id: int, comment: CommentCreate, token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -281,7 +272,6 @@ async def add_comment(id: int, comment: CommentCreate, token: str = Header(...),
 
     return {"message": "Comment added successfully"}
 
-# Получение списка комментариев объявления
 @app.get("/shanyraks/{id}/comments")
 async def get_comments(id: int, session: AsyncSession = Depends(get_session)):
     stmt = select(comments).where(comments.c.shanyrak_id == id)
@@ -297,7 +287,6 @@ async def get_comments(id: int, session: AsyncSession = Depends(get_session)):
         } for comment in comment_list
     ]}
 
-# Изменение текста комментария
 @app.patch("/shanyraks/{id}/comments/{comment_id}")
 async def update_comment(id: int, comment_id: int, comment: CommentUpdate, token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -325,7 +314,6 @@ async def update_comment(id: int, comment_id: int, comment: CommentUpdate, token
 
     return {"message": "Comment updated successfully"}
 
-# Удаление комментария
 @app.delete("/shanyraks/{id}/comments/{comment_id}")
 async def delete_comment(id: int, comment_id: int, token: str = Header(...), session: AsyncSession = Depends(get_session)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
